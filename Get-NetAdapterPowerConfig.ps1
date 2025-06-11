@@ -36,7 +36,9 @@
 
 
 function Get-NetAdapterPowerConfig {
-    [CmdletBinding(DefaultParameterSetName='AllAdapters', SupportsShouldProcess=$true, VerboseMessage='Processing network adapter power configurations.')]
+    # Removed 'VerboseMessage' as it's not a valid parameter for CmdletBindingAttribute.
+    # Verbose messages are handled by Write-Verbose calls within the function.
+    [CmdletBinding(DefaultParameterSetName='AllAdapters', SupportsShouldProcess=$true)]
     param(
         # Optional: Specify the names of specific network adapters to check.
         # If not provided, the script will check all available network adapters.
