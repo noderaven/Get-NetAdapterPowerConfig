@@ -58,8 +58,9 @@ function Get-NetAdapterPowerConfig {
         @{ FeatureName = "Energy Efficient Ethernet"; DisplayNamePatterns = @("Energy Efficient Ethernet", "EEE", "Energy Efficiency Ethernet") },
         @{ FeatureName = "Gigabit Lite"; DisplayNamePatterns = @("Gigabit Lite") },
         @{ FeatureName = "Green Ethernet"; DisplayNamePatterns = @("Green Ethernet") },
-        @{ FeatureName = "Large Send Offload (IPv4)"; DisplayNamePatterns = @("Large Send Offload (IPv4)", "LSOv4", "IPv4 Large Send Offload") },
-        @{ FeatureName = "Large Send Offload (IPv6)"; DisplayNamePatterns = @("Large Send Offload (IPv6)", "LSOv6", "IPv6 Large Send Offload") }
+        # Updated DisplayNamePatterns for Large Send Offload to include "v2"
+        @{ FeatureName = "Large Send Offload (IPv4)"; DisplayNamePatterns = @("Large Send Offload (IPv4)", "LSOv4", "IPv4 Large Send Offload", "Large Send Offload V2 (IPv4)", "Large Send Offload v2 (IPv4)") },
+        @{ FeatureName = "Large Send Offload (IPv6)"; DisplayNamePatterns = @("Large Send Offload (IPv6)", "LSOv6", "IPv6 Large Send Offload", "Large Send Offload V2 (IPv6)", "Large Send Offload v2 (IPv6)") }
     )
 
     # Loop through each network adapter name provided or found.
@@ -146,26 +147,35 @@ function Get-NetAdapterPowerConfig {
                     $actualPropertyName = $foundProperty.DisplayName
                     $propertyValue = $foundProperty.RegistryValue
 
-                    # Interpret the status based on common RegistryValue types.
-                    # This is a common pattern for on/off settings (0=Disabled, 1=Enabled).
-                    # However, some properties might have different interpretations or be multi-choice.
+                    # --- Enhanced interpretation of RegistryValue for 'Enabled'/'Disabled' status ---
+                    # Common scenarios:
+                    # 1. Integer (e.g., 0 or 1)
+                    # 2. String (e.g., "0" or "1")
+                    # 3. String array with a single element (e.g., {"0"} or {"1"})
+                    # 4. Other types/values (pass through)
+
+                    $tempValue = $null
                     if ($propertyValue -is [int]) {
-                        $status = switch ($propertyValue) {
-                            0       { "Disabled" }
-                            1       { "Enabled" }
-                            default { "Custom/Value: $propertyValue" } # For other integer values
-                        }
-                    }
-                    elseif ($propertyValue -is [bool]) {
-                         $status = if ($propertyValue) { "Enabled" } else { "Disabled" }
+                        $tempValue = $propertyValue
                     }
                     elseif ($propertyValue -is [string]) {
-                        # For string values, just show the value as the status.
-                        $status = "Value: '$propertyValue'"
+                        [int]::TryParse($propertyValue, [ref]$tempValue) | Out-Null
+                    }
+                    elseif ($propertyValue -is [System.String[]] -and $propertyValue.Length -gt 0) {
+                        [int]::TryParse($propertyValue[0], [ref]$tempValue) | Out-Null
+                    }
+
+                    # Determine status based on the interpreted integer value
+                    if ($tempValue -ne $null -and ($tempValue -eq 0 -or $tempValue -eq 1)) {
+                        $status = if ($tempValue -eq 1) { "Enabled" } else { "Disabled" }
                     }
                     else {
-                        # Catch-all for other data types.
-                        $status = "Value: '$propertyValue' (Type: $($propertyValue.GetType().Name))"
+                        # Fallback if interpretation failed or value is not 0/1
+                        if ($propertyValue -is [System.Array]) {
+                            $status = "Value: '{ $($propertyValue -join ', ') }' (Type: $($propertyValue.GetType().Name))"
+                        } else {
+                            $status = "Value: '$propertyValue' (Type: $($propertyValue.GetType().Name))"
+                        }
                     }
                 }
                 Write-Verbose "Checked '$($featureDef.FeatureName)' for $($adapter.Name): $($status)"
@@ -192,8 +202,9 @@ function Get-NetAdapterPowerConfig {
 # The output will be a collection of PowerShell objects, suitable for console display
 # or piping to other cmdlets like Export-Csv, ConvertTo-Json, etc.
 
-# Example: To run and display the results in the console:
-Get-NetAdapterPowerConfig
+# Example: To run and display the results in the console with better formatting:
+# Added -Wrap to ensure long column content is not truncated and wraps to the next line.
+Get-NetAdapterPowerConfig | Format-Table -AutoSize -Wrap
 
 # Example: To run and save the results to a CSV file (recommended for unattended execution):
 # Get-NetAdapterPowerConfig | Export-Csv -Path "C:\Temp\NetworkPowerConfig_$(Get-Date -Format 'yyyyMMdd_HHmmss').csv" -NoTypeInformation -Encoding UTF8
@@ -202,4 +213,4 @@ Get-NetAdapterPowerConfig
 # Get-NetAdapterPowerConfig -Verbose
 
 # Example: To check a specific adapter by name:
-# Get-NetAdapterPowerConfig -Name "Ethernet"
+# Get-NetAdapterPowerConfig -Name "Ethernet" | Format-Table -AutoSize -Wrap
