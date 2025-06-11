@@ -56,6 +56,7 @@ function Get-NetAdapterPowerConfig {
     $featuresToScan = @(
         @{ FeatureName = "Advanced EEE"; DisplayNamePatterns = @("Advanced EEE") },
         @{ FeatureName = "Energy Efficient Ethernet"; DisplayNamePatterns = @("Energy Efficient Ethernet", "EEE", "Energy Efficiency Ethernet") },
+        @{ FeatureName = "Ultra Low Power Mode"; DisplayNamePatterns = @("Ultra Low Power mode") },
         @{ FeatureName = "Gigabit Lite"; DisplayNamePatterns = @("Gigabit Lite") },
         @{ FeatureName = "Green Ethernet"; DisplayNamePatterns = @("Green Ethernet") },
         # Updated DisplayNamePatterns for Large Send Offload to include "v2"
